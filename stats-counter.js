@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const fs = require('fs');
 
 function parseCookies(req){
     const str = req.header('Cookie');
@@ -78,6 +79,41 @@ function getStats(stats){
     };
 }
 
+function prepareForJSON(stat){
+    const clone = Object.assign({}, stat);
+    clone.lastRequests = Array.from(clone.lastRequests.entries());
+    return clone
+}
+
+function statsToJSON(stats){
+    return JSON.stringify(
+        {
+            total: prepareForJSON(stats.total),
+            thisMinute: prepareForJSON(stats.thisMinute),
+            thisHour: prepareForJSON(stats.thisHour),
+            today: prepareForJSON(stats.today),
+            thisMonth: prepareForJSON(stats.thisMonth),
+            thisYear: prepareForJSON(stats.thisYear)
+        }
+    )
+}
+
+function prepareForUse(stat) {
+    stat.lastRequests = new Map(stat.lastRequests);
+    return stat;
+}
+
+function statsFromJSON(json){
+    const stats = JSON.parse(json);
+    stats.total = prepareForUse(stats.total);
+    stats.thisMinute = prepareForUse(stats.thisMinute);
+    stats.thisHour = prepareForUse(stats.thisHour);
+    stats.today = prepareForUse(stats.today);
+    stats.thisMonth = prepareForUse(stats.thisMonth);
+    stats.thisYear = prepareForUse(stats.thisYear);
+    return stats;
+}
+
 module.exports = (options) => {
     if(typeof options === 'undefined')
         throw 'No options provided.';
@@ -85,42 +121,49 @@ module.exports = (options) => {
     if(typeof options.visitTime === 'undefined')
         throw 'visitTime option is required.';
 
-    const total = createStats(0);
-    const thisMinute = createStats(60);
-    const thisHour = createStats(3600);
-    const today = createStats(86400);
-    const thisMonth = createStats(2629746);
-    const thisYear = createStats(31556926);
+    let stats = {
+        total: createStats(0),
+        thisMinute: createStats(60),
+        thisHour: createStats(3600),
+        today: createStats(86400),
+        thisMonth: createStats(2629746),
+        thisYear: createStats(31556926)
+    };
 
-    const allStats = [
-        total,
-        thisMinute,
-        thisHour,
-        today,
-        thisMonth,
-        thisYear
-    ];
+    if(typeof options.savePath !== 'undefined'){
+        if(fs.existsSync(options.savePath)){
+            stats = statsFromJSON(fs.readFileSync(options.savePath).toString());
+        }
+
+        const saveInterval = options.saveInterval || 60;
+        setInterval(() => {
+            fs.writeFileSync(
+                options.savePath,
+                statsToJSON(stats)
+            );
+        }, saveInterval);
+    }
 
     return (req, res, next) => {
         if(req.path === options.apiPath){
-            allStats.forEach(stats => updateStats(stats));
+            Object.values(stats).forEach(stats => updateStats(stats));
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({
-                total: getStats(total),
-                thisMinute: getStats(thisMinute),
-                thisHour: getStats(thisHour),
-                today: getStats(today),
-                thisMonth: getStats(thisMonth),
-                thisYear: getStats(thisYear)
+                total: getStats(stats.total),
+                thisMinute: getStats(stats.thisMinute),
+                thisHour: getStats(stats.thisHour),
+                today: getStats(stats.today),
+                thisMonth: getStats(stats.thisMonth),
+                thisYear: getStats(stats.thisYear)
             }));
             return;
         }
 
         const id = getId(req, res);
 
-        allStats.forEach(stats => {
+        Object.values(stats).forEach(stats => {
             addToStats(stats, id, options);
-        })
+        });
         next();
     };
 }

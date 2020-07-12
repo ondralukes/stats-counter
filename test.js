@@ -6,7 +6,9 @@ const app = express();
 
 app.use(statsCounter({
     visitTime: 10,
-    apiPath: '/stats'
+    apiPath: '/stats',
+    savePath: 'statsSave',
+    saveInterval: 5
 }));
 
 app.get('/', (req, res) => {
