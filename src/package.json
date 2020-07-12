@@ -1,8 +1,15 @@
 {
   "name": "stats-counter",
+  "author": {
+    "email": "mail@ondralukes.cz",
+    "name": "Ondrej Lukes",
+    "url": "https://www.ondralukes.cz"
+  },
+  "license": "MIT License",
   "version": "1.0.0",
   "dependencies": {},
   "devDependencies": {
     "express": "^4.17.1"
-  }
+  },
+  "main": "stats-counter.js"
 }
