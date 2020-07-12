@@ -5,11 +5,15 @@
     "name": "Ondrej Lukes",
     "url": "https://www.ondralukes.cz"
   },
-  "license": "MIT License",
+  "license": "MIT",
   "version": "1.0.0",
   "dependencies": {},
   "devDependencies": {
     "express": "^4.17.1"
   },
-  "main": "stats-counter.js"
+  "main": "stats-counter.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ondralukes/stats-counter.git"
+  }
 }
