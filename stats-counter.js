@@ -25,8 +25,9 @@ function getId(req, res){
     let statsId = cookies.get('statsId');
     if(typeof statsId === 'undefined'){
         statsId = crypto.randomBytes(32).toString('hex');
-        res.cookie('statsId', statsId, {httpOnly: false, expire: 2147483647});
     }
+    const expiryDate = new Date(Number(new Date()) + 315360000000);
+    res.cookie('statsId', statsId, {httpOnly: false, expires: expiryDate});
     return statsId;
 }
 
