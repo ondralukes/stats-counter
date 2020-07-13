@@ -51,11 +51,17 @@ function addToStats(stats, lastRequest, options){
     const time = Math.floor(Date.now() / 1000);
     updateStats(stats);
 
+    if(lastRequest < stats.clearAt - stats.clearInterval){
+        lastRequest = null;
+    }
+
     if(lastRequest !== null){
         if(time - lastRequest > options.visitTime){
+            if(options.debugLog) console.log('  Visit');
             stats.total++;
         }
     } else {
+        if(options.debugLog) console.log('  Unique visit');
         stats.total++;
         stats.unique++;
     }
@@ -133,8 +139,12 @@ module.exports = (options) => {
 
         const lastRequest = getLastRequest(req, res);
 
-        Object.values(stats).forEach(stats => {
-            addToStats(stats, lastRequest, options);
+        if(options.debugLog){
+            console.log(req.path + ': lastReq = ' + lastRequest);
+        }
+        Object.values(stats).forEach((stat, i) => {
+            if(options.debugLog) console.log(Object.keys(stats)[i]);
+            addToStats(stat, lastRequest, options);
         });
         next();
     };

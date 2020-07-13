@@ -8,7 +8,8 @@ app.use(statsCounter({
     visitTime: 10,
     apiPath: '/stats',
     savePath: 'statsSave',
-    saveInterval: 5
+    saveInterval: 5,
+    debugLog: true
 }));
 
 app.get('/', (req, res) => {
