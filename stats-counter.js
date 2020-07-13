@@ -1,4 +1,3 @@
-const crypto = require('crypto');
 const fs = require('fs');
 
 function parseCookies(req){
@@ -7,28 +6,30 @@ function parseCookies(req){
     if(typeof str === 'undefined')
         return new Map();
 
-    const pairs = str.split(';');
+    const pairs = str.replace(/ /g, '').split(';');
     const res = new Map();
+
     pairs.forEach((pair) => {
         const index = pair.indexOf('=');
         const key = pair.substring(0, index);
         const value = pair.substring(index+1);
         res.set(key, value);
     });
-
+    
     return res;
 }
 
-function getId(req, res){
+function getLastRequest(req, res){
+    const time = Math.floor(Date.now() / 1000);
     const cookies = parseCookies(req);
 
-    let statsId = cookies.get('statsId');
-    if(typeof statsId === 'undefined'){
-        statsId = crypto.randomBytes(32).toString('hex');
+    let lastRequest = cookies.get('stats-lastRequest');
+    if(typeof lastRequest === 'undefined'){
+        lastRequest = null;
     }
     const expiryDate = new Date(Number(new Date()) + 315360000000);
-    res.cookie('statsId', statsId, {httpOnly: false, expires: expiryDate});
-    return statsId;
+    res.cookie('stats-lastRequest', time, {httpOnly: true, expires: expiryDate});
+    return lastRequest;
 }
 
 function updateStats(stats){
@@ -42,25 +43,21 @@ function updateStats(stats){
         if(time >= stats.clearAt){
             stats.total = 0;
             stats.unique = 0;
-            stats.lastRequests = new Map();
             stats.clearAt += stats.clearInterval;
         }
     }
 }
-function addToStats(stats, id, options){
+function addToStats(stats, lastRequest, options){
     const time = Math.floor(Date.now() / 1000);
     updateStats(stats);
 
-    if(stats.lastRequests.has(id)){
-        if(time - stats.lastRequests.get(id) > options.visitTime){
+    if(lastRequest !== null){
+        if(time - lastRequest > options.visitTime){
             stats.total++;
-        } else {
         }
-        stats.lastRequests.set(id, time);
     } else {
         stats.total++;
         stats.unique++;
-        stats.lastRequests.set(id, time);
     }
 }
 
@@ -68,7 +65,6 @@ function createStats(clearInterval){
     return {
         total: 0,
         unique: 0,
-        lastRequests: new Map(),
         clearInterval: clearInterval
     };
 }
@@ -80,39 +76,13 @@ function getStats(stats){
     };
 }
 
-function prepareForJSON(stat){
-    const clone = Object.assign({}, stat);
-    clone.lastRequests = Array.from(clone.lastRequests.entries());
-    return clone
-}
 
 function statsToJSON(stats){
-    return JSON.stringify(
-        {
-            total: prepareForJSON(stats.total),
-            thisMinute: prepareForJSON(stats.thisMinute),
-            thisHour: prepareForJSON(stats.thisHour),
-            today: prepareForJSON(stats.today),
-            thisMonth: prepareForJSON(stats.thisMonth),
-            thisYear: prepareForJSON(stats.thisYear)
-        }
-    )
-}
-
-function prepareForUse(stat) {
-    stat.lastRequests = new Map(stat.lastRequests);
-    return stat;
+    return JSON.stringify(stats);
 }
 
 function statsFromJSON(json){
-    const stats = JSON.parse(json);
-    stats.total = prepareForUse(stats.total);
-    stats.thisMinute = prepareForUse(stats.thisMinute);
-    stats.thisHour = prepareForUse(stats.thisHour);
-    stats.today = prepareForUse(stats.today);
-    stats.thisMonth = prepareForUse(stats.thisMonth);
-    stats.thisYear = prepareForUse(stats.thisYear);
-    return stats;
+    return JSON.parse(json);
 }
 
 module.exports = (options) => {
@@ -156,14 +126,15 @@ module.exports = (options) => {
                 today: getStats(stats.today),
                 thisMonth: getStats(stats.thisMonth),
                 thisYear: getStats(stats.thisYear)
-            }));
+            })
+            );
             return;
         }
 
-        const id = getId(req, res);
+        const lastRequest = getLastRequest(req, res);
 
         Object.values(stats).forEach(stats => {
-            addToStats(stats, id, options);
+            addToStats(stats, lastRequest, options);
         });
         next();
     };
