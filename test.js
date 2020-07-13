@@ -5,7 +5,7 @@ const statsCounter = require('./stats-counter');
 const app = express();
 
 app.use(statsCounter({
-    visitTime: 10,
+    visitTime: 300,
     apiPath: '/stats',
     savePath: 'statsSave',
     saveInterval: 5,

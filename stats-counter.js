@@ -23,12 +23,12 @@ function getLastRequest(req, res){
     const time = Math.floor(Date.now() / 1000);
     const cookies = parseCookies(req);
 
-    let lastRequest = cookies.get('stats-lastRequest');
-    if(typeof lastRequest === 'undefined'){
+    let lastRequest = parseInt(cookies.get('stats-lastRequest'),10);
+    if(isNaN(lastRequest)){
         lastRequest = null;
     }
     const expiryDate = new Date(Number(new Date()) + 315360000000);
-    res.cookie('stats-lastRequest', time, {httpOnly: true, expires: expiryDate});
+    res.cookie('stats-lastRequest', time, {sameSite: 'strict', httpOnly: true, expires: expiryDate});
     return lastRequest;
 }
 
@@ -51,7 +51,8 @@ function addToStats(stats, lastRequest, options){
     const time = Math.floor(Date.now() / 1000);
     updateStats(stats);
 
-    if(lastRequest < stats.clearAt - stats.clearInterval){
+    if(lastRequest !== null && lastRequest < stats.clearAt - stats.clearInterval){
+        if(options.debugLog) console.log('  Interval end. Reset.');
         lastRequest = null;
     }
 
@@ -118,7 +119,7 @@ module.exports = (options) => {
                 options.savePath,
                 statsToJSON(stats)
             );
-        }, saveInterval);
+        }, saveInterval*1000);
     }
 
     return (req, res, next) => {
